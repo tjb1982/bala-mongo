@@ -5,8 +5,9 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
                 [org.clojure/clojure "1.6.0"]
-                [marshal "1.1.1"]
+                [marshal "1.0.0"]
                 [org.mongodb/mongo-java-driver "2.12.3"]
+		[org.apache.commons/commons-lang3 "3.3.2"]
                 ]
   :main ^:skip-aot bala-mongo.core
   :target-path "target/%s"
