@@ -58,13 +58,15 @@
             (and (< remaining 0)
                  (.hasRemaining bb)))
       (let [doc-length (.getInt bb)]
-        (.position bb (- (.position bb) 4))
-        (let [documents (conj documents
-                          (let [ba (byte-array doc-length)]
-                            (.get bb ba 0 doc-length)
-                            (com.mongodb.util.JSON/serialize
-			      (org.bson.BSON/decode ba))))]
-	  (parse-documents bb (dec remaining) documents)))
+	(.position bb (- (.position bb) 4))
+        (if (> doc-length 0)
+          (let [documents (conj documents
+                            (let [ba (byte-array doc-length)]
+                              (.get bb ba 0 doc-length)
+                   ;           (com.mongodb.util.JSON/serialize
+                                (org.bson.BSON/decode ba)))]
+	  (parse-documents bb (dec remaining) documents))
+          documents))
       documents)))
 
 (defn parse-reply
