@@ -6,8 +6,10 @@
 (def sep "|||")
 
 (def file-name
-  (str "bala-mongo-output "
-       (-> (java.util.Date.) .toString)
+  (str "bala-mongo-output-"
+       (-> (java.util.Date.)
+         .toString
+	 (clojure.string/replace #"\s+" "-"))
        ".csv"))
 
 (defprotocol ByteFormat
@@ -35,7 +37,7 @@
 (defn get-c-string
   ([bb] (get-c-string bb ""))
   ([bb string]
-    (when (.hasRemaining bb)
+    (when (.hasRemaining bb) ;; i.e., this should return before this is possible if this is actually a \0 terminated string
       (let [b (.get bb)]
         (if (not= b 0)
           (get-c-string bb (str string (char b)))
@@ -58,13 +60,15 @@
             (and (< remaining 0)
                  (.hasRemaining bb)))
       (let [doc-length (.getInt bb)]
-	(.position bb (- (.position bb) 4))
+        (.position bb (- (.position bb) 4))
         (if (> doc-length 0)
           (let [documents (conj documents
                             (let [ba (byte-array doc-length)]
                               (.get bb ba 0 doc-length)
-                   ;           (com.mongodb.util.JSON/serialize
-                                (org.bson.BSON/decode ba)))]
+                              (try
+                                (org.bson.BSON/decode ba)
+                                (catch IllegalArgumentException e
+                                  (.getMessage e)))))]
 	  (parse-documents bb (dec remaining) documents))
           documents))
       documents)))
