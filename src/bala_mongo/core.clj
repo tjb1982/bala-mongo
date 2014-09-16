@@ -4,19 +4,24 @@
   (:gen-class))
 
 (def sep "|||")
+(def ^:dynamic props {})
+(def time-when-module-was-loaded
+     (-> (java.util.Date.)
+       .toString
+       (clojure.string/replace #"[\s\:]+" "-")))
 
-(def file-name
-  (str "bala-mongo-output-"
-       (-> (java.util.Date.)
-         .toString
-	 (clojure.string/replace #"\s+" "-"))
+(defn file-name
+  []
+  (str (-> props :bala-mongo :output)
+       "bala-mongo-output-"
+       time-when-module-was-loaded
        ".csv"))
 
 (defprotocol ByteFormat
   (as-hex [bytez]))
 
 (extend-protocol ByteFormat
-  
+ 
   (Class/forName "[B")
   (as-hex [bytez]
     (apply str (for [b bytez] (format "%02x " b))))
@@ -27,7 +32,10 @@
 
   java.nio.ByteBuffer
   (as-hex [bytez]
-    (as-hex (.array bytez))))
+    (as-hex (.array bytez)))
+
+  nil
+  (as-hex [bytez] ""))
 
 (defn lil-byte-buffer
   [byte-arr]
@@ -103,12 +111,12 @@
   (let [bb (lil-byte-buffer (.toByteArray msg))
         header (parse-header bb)]
     (if (.hasRemaining bb)
-      {:header header
-       :body (condp = (-> header :op-code)
-               1 (parse-reply bb)
-               2002 (parse-insert bb)
-               2004 (parse-query bb)
-               nil)})))
+        {:header header
+         :body (condp = (-> header :op-code)
+                 1 (parse-reply bb)
+                 2002 (parse-insert bb)
+                 2004 (parse-query bb)
+                 nil)})))
 
 (defn report-responses
   [pkg]
@@ -116,7 +124,7 @@
     (map-indexed
       (fn [i resp]
         (with-open [w (clojure.java.io/writer
-                        file-name :append true)]
+                        (file-name) :append true)]
           (.write w
 	    (str
 	      (clojure.string/join sep
@@ -143,10 +151,11 @@
           -1))
       first-read)))
 
-(defn before-create-server
+(defn before-connection
   [props]
+  (alter-var-root #'props (fn [_] props)) 
   (with-open [w (clojure.java.io/writer
-                  file-name)]
+                  (file-name))]
     (.write w
       (str (clojure.string/join sep
         ["Server Name"
@@ -163,7 +172,23 @@
 
 (defn read-response
   [in]
-  (read-wire in))
+  (let [ba (read-wire in)]
+    (when (and (not= ba -1)
+               (-> props :bala-mongo :max-wire-version)
+               (= (second ba) 0x00)) ;; i.e., msglen less than 256
+      (let [string (String. ba "ISO-8859-1")
+            index (.indexOf string "maxWireVersion")
+            wire-version (-> props :bala-mongo :max-wire-version)]
+        (if (pos? index)
+          (aset-byte ba (+ index 15) wire-version))))
+    ba))
+
+(defn expect-response?
+  [buf]
+  (let [msg (parse-msg buf)]
+    (if (some #(= (-> msg :header :op-code) %) [2002 2006])
+      false
+      true)))
 
 (defn handle-interchange
   [pkg]
