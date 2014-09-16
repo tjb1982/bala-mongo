@@ -186,9 +186,9 @@
 (defn expect-response?
   [buf]
   (let [msg (parse-msg buf)]
-    (if (some #(= (-> msg :header :op-code) %) [2002 2006])
-      false
-      true)))
+    (if (some #(= (-> msg :header :op-code) %) [2004 2005])
+      true
+      false)))
 
 (defn handle-interchange
   [pkg]
