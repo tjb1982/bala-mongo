@@ -106,6 +106,30 @@
               :documents (parse-documents bb)}]
     body))
 
+(defn parse-get-more
+  [bb]
+  (let [body {:ZERO (.getInt bb)
+              :full-collection-name (get-c-string bb)
+              :number-to-return (.getInt bb)
+              :cursor-id (.getLong bb)}]
+    body))
+
+(defn parse-kill-cursors
+  [bb]
+  (let [body {:ZERO (.getInt bb)
+              :number-of-cursor-ids (.getInt bb)
+              :cursor-ids (.getLong bb)}]
+    body))
+
+(defn parse-update
+  [bb]
+  (let [body {:ZERO (.getInt bb)
+              :full-collection-name (get-c-string bb)
+              :flags (.getInt bb)
+              :selector (parse-documents bb 1)
+              :update (parse-documents bb 1)}]
+    body))
+
 (defn parse-msg
   [msg]
   (let [bb (lil-byte-buffer (.toByteArray msg))
@@ -114,8 +138,11 @@
         {:header header
          :body (condp = (-> header :op-code)
                  1 (parse-reply bb)
+                 2001 (parse-update bb)
                  2002 (parse-insert bb)
                  2004 (parse-query bb)
+                 2005 (parse-get-more bb)
+                 2007 (parse-kill-cursors bb)
                  nil)})))
 
 (defn report-responses
