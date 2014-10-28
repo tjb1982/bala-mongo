@@ -199,16 +199,20 @@
 
 (defn read-response
   [in]
-  (let [ba (read-wire in)]
-    (when (and (not= ba -1)
-               (-> props :bala-mongo :max-wire-version)
-               (= (second ba) 0x00)) ;; i.e., msglen less than 256
-      (let [string (String. ba "ISO-8859-1")
-            index (.indexOf string "maxWireVersion")
-            wire-version (-> props :bala-mongo :max-wire-version)]
-        (if (pos? index)
-          (aset-byte ba (+ index 15) wire-version))))
-    ba))
+  (read-wire in))
+
+;(defn read-response
+;  [in]
+;  (let [ba (read-wire in)]
+;    (when (and (not= ba -1)
+;               (-> props :bala-mongo :max-wire-version)
+;               (= (second ba) 0x00)) ;; i.e., msglen less than 256
+;      (let [string (String. ba "ISO-8859-1")
+;            index (.indexOf string "maxWireVersion")
+;            wire-version (-> props :bala-mongo :max-wire-version)]
+;        (if (pos? index)
+;          (aset-byte ba (+ index 15) wire-version))))
+;    ba))
 
 (defn expect-response?
   [buf]
